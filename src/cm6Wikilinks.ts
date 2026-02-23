@@ -116,6 +116,38 @@ const wikilinkPlugin = ViewPlugin.fromClass(
 );
 
 // ────────────────────────────────────────────────
+// Click handler — Ctrl/Cmd+Click to follow
+// ────────────────────────────────────────────────
+
+/**
+ * Build a click handler that sends `followWikilink` messages via the
+ * content script bridge when the user Ctrl/Cmd+clicks a wikilink.
+ */
+function wikilinkClickHandler(context: ContentScriptContext) {
+	return EditorView.domEventHandlers({
+		mousedown(event: MouseEvent, view: EditorView) {
+			// Require Cmd (Mac) or Ctrl (Win/Linux)
+			if (!event.metaKey && !event.ctrlKey) return false;
+
+			const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+			if (pos === null) return false;
+
+			// Check if the clicked position falls within any wikilink
+			const links = findWikilinks(view);
+			for (const link of links) {
+				if (pos >= link.from && pos < link.to) {
+					event.preventDefault();
+					context.postMessage({ name: 'followWikilink', target: link.target });
+					return true;
+				}
+			}
+
+			return false;
+		},
+	});
+}
+
+// ────────────────────────────────────────────────
 // Base theme
 // ────────────────────────────────────────────────
 
@@ -140,7 +172,11 @@ export default (context: ContentScriptContext): MarkdownEditorContentScriptModul
 	plugin: (editorControl: any) => {
 		if (!editorControl.cm6) return;
 
-		editorControl.addExtension([wikilinkPlugin, wikilinkTheme]);
+		editorControl.addExtension([
+			wikilinkPlugin,
+			wikilinkClickHandler(context),
+			wikilinkTheme,
+		]);
 
 		// Register scroll-to-line command for heading navigation
 		editorControl.registerCommand('scrollToWikilinkLine', (lineNumber: number) => {
