@@ -222,9 +222,16 @@ async function convertToWikilink(
 	// Bail if the document changed during the async round-trip
 	if (view.state.sliceDoc(link.from, link.to) !== original) return;
 
+	// Skip alias when display text matches the title or its first word (zettel ID)
+	const needsAlias = link.text
+		&& link.text !== title
+		&& link.text.toLowerCase() !== title.toLowerCase().split(' ')[0];
+
 	// Build the wikilink target (title + optional heading slug)
-	const target = link.slug ? `${title}#${link.slug}` : title;
-	const wikilink = (link.text && link.text !== title)
+	const target = needsAlias
+		? (link.slug ? `${title}#${link.slug}` : title)
+		: (link.slug ? `${link.text || title}#${link.slug}` : (link.text || title));
+	const wikilink = needsAlias
 		? `[[${target}|${link.text}]]`
 		: `[[${target}]]`;
 
