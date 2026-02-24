@@ -5,6 +5,20 @@ const uslug = require('@joplin/fork-uslug');
 const CONTENT_SCRIPT_ID = 'cm6-wikilinks';
 
 // ────────────────────────────────────────────────
+// Memory management helpers
+// ────────────────────────────────────────────────
+
+/** Clear a paginated API response to help GC. */
+function clearApiResponse(response: any): void {
+	if (!response || typeof response !== 'object') return;
+	if (Array.isArray(response.items)) {
+		response.items.length = 0;
+	}
+	delete response.items;
+	delete response.has_more;
+}
+
+// ────────────────────────────────────────────────
 // Note resolution — 3-tier strategy
 // ────────────────────────────────────────────────
 
@@ -43,10 +57,11 @@ async function resolveNoteId(title: string): Promise<string | null> {
 				page,
 			});
 			const items = results.items || [];
+			let exactId: string | null = null;
 
 			for (const n of items) {
 				// 2. Exact title match
-				if (n.title === title) return n.id;
+				if (n.title === title) { exactId = n.id; break; }
 
 				// 3. Case-insensitive match — prefer shortest title
 				if (n.title.toLowerCase() === titleLower) {
@@ -58,6 +73,9 @@ async function resolveNoteId(title: string): Promise<string | null> {
 
 			hasMore = results.has_more;
 			page++;
+			clearApiResponse(results);
+
+			if (exactId) return exactId;
 		}
 
 		if (caseInsensitiveMatch) return caseInsensitiveMatch.id;
@@ -83,6 +101,7 @@ async function resolveNoteId(title: string): Promise<string | null> {
 
 			hasMore = results.has_more;
 			page++;
+			clearApiResponse(results);
 		}
 
 		if (firstWordMatch) return firstWordMatch.id;
