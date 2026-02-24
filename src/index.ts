@@ -1,10 +1,8 @@
 import joplin from 'api';
 import { ContentScriptType } from 'api/types';
+const uslug = require('@joplin/fork-uslug');
 
 const CONTENT_SCRIPT_ID = 'cm6-wikilinks';
-
-/** Delay (ms) before scrolling to a heading after opening a note. */
-const SCROLL_DELAY_MS = 500;
 
 // ────────────────────────────────────────────────
 // Note resolution — 3-tier strategy
@@ -92,38 +90,17 @@ async function resolveNoteId(title: string): Promise<string | null> {
 }
 
 // ────────────────────────────────────────────────
-// Heading scroll
+// Message handler
 // ────────────────────────────────────────────────
 
 /**
- * After navigating to a note, find the target heading and scroll to it.
- * Headings are matched case-insensitively.
+ * Convert raw heading text (Obsidian-style) to a Joplin-compatible slug.
+ * Uses the same algorithm Joplin uses internally for anchor IDs.
+ * Accepts both raw text ("My Heading") and pre-slugified ("my-heading").
  */
-async function scrollToHeading(heading: string): Promise<void> {
-	const note = await joplin.workspace.selectedNote();
-	if (!note?.body) return;
-
-	const headingLower = heading.toLowerCase();
-	const lines = note.body.split('\n');
-
-	for (let i = 0; i < lines.length; i++) {
-		const m = lines[i].match(/^#{1,6}\s+(.+)$/);
-		if (m && m[1].trim().toLowerCase() === headingLower) {
-			// Line numbers are 1-based
-			await joplin.commands.execute('editor.execCommand', {
-				name: 'scrollToWikilinkLine',
-				args: [i + 1],
-			});
-			return;
-		}
-	}
-
-	console.warn(`[wikilinks] heading not found: "${heading}"`);
+function headingToSlug(heading: string): string {
+	return uslug(heading);
 }
-
-// ────────────────────────────────────────────────
-// Message handler
-// ────────────────────────────────────────────────
 
 async function handleMessage(message: any): Promise<void> {
 	if (message?.name !== 'followWikilink' || !message.target) return;
@@ -134,6 +111,13 @@ async function handleMessage(message: any): Promise<void> {
 	const hashIdx = raw.indexOf('#');
 	const title = hashIdx >= 0 ? raw.slice(0, hashIdx) : raw;
 	const heading = hashIdx >= 0 ? raw.slice(hashIdx + 1) : null;
+	const slug = heading ? headingToSlug(heading) : null;
+
+	// Same-note heading jump: no title before `#`
+	if (!title && slug) {
+		await joplin.commands.execute('scrollToHash', slug);
+		return;
+	}
 
 	const noteId = await resolveNoteId(title);
 	if (!noteId) {
@@ -141,12 +125,11 @@ async function handleMessage(message: any): Promise<void> {
 		return;
 	}
 
-	await joplin.commands.execute('openNote', noteId);
-
-	if (heading) {
-		// Wait for the editor to load the new note
-		await new Promise((resolve) => setTimeout(resolve, SCROLL_DELAY_MS));
-		await scrollToHeading(heading);
+	if (slug) {
+		// openNote accepts hash as second arg — Joplin handles the scroll
+		await joplin.commands.execute('openNote', noteId, slug);
+	} else {
+		await joplin.commands.execute('openNote', noteId);
 	}
 }
 

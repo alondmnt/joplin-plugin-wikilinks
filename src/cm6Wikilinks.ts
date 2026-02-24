@@ -181,24 +181,5 @@ export default (context: ContentScriptContext): MarkdownEditorContentScriptModul
 			wikilinkClickHandler(context),
 			wikilinkTheme,
 		]);
-
-		// Register scroll-to-line command for heading navigation
-		editorControl.registerCommand('scrollToWikilinkLine', (lineNumber: number) => {
-			const editor: EditorView = editorControl.editor;
-
-			if (lineNumber < 1) lineNumber = 1;
-			if (lineNumber > editor.state.doc.lines) {
-				lineNumber = editor.state.doc.lines;
-			}
-
-			const lineInfo = editor.state.doc.line(lineNumber);
-			editor.dispatch(
-				editor.state.update({
-					selection: { anchor: lineInfo.from },
-					effects: EditorView.scrollIntoView(lineInfo.from, { y: 'start' }),
-				}),
-			);
-			editor.focus();
-		});
 	},
 });
