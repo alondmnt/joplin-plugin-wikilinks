@@ -13,6 +13,7 @@ A [Joplin](https://joplinapp.org/) plugin that adds `[[wikilinks]]` support to t
   2. Exact title match (case-sensitive).
   3. Case-insensitive title match (shortest title preferred).
   4. First-word / zettel ID match.
+- **Convert Joplin links** — convert `[text](:/noteId)` markdown links to wikilinks via the Note menu, editor toolbar button, or `Ctrl+Shift+L`. Automatically resolves note titles and uses pipe syntax when the display text differs.
 - **Code-aware** — wikilinks inside code blocks and inline code are ignored.
 
 ## Installation
