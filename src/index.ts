@@ -1,5 +1,5 @@
 import joplin from 'api';
-import { ContentScriptType, MenuItemLocation } from 'api/types';
+import { ContentScriptType, MenuItemLocation, ToolbarButtonLocation } from 'api/types';
 const uslug = require('@joplin/fork-uslug');
 
 const CONTENT_SCRIPT_ID = 'cm6-wikilinks';
@@ -184,6 +184,7 @@ joplin.plugins.register({
 		await joplin.commands.register({
 			name: 'wikilinks.convertLink',
 			label: 'Convert Joplin link to wikilink',
+			iconName: 'fas fa-exchange-alt',
 			execute: async () => {
 				await joplin.commands.execute('editor.execCommand', {
 					name: 'convertToWikilink',
@@ -196,6 +197,12 @@ joplin.plugins.register({
 			'wikilinks.convertLink',
 			MenuItemLocation.Note,
 			{ accelerator: 'Ctrl+Shift+L' },
+		);
+
+		await joplin.views.toolbarButtons.create(
+			'wikilinks-convert-link-toolbar',
+			'wikilinks.convertLink',
+			ToolbarButtonLocation.EditorToolbar,
 		);
 
 		console.info('[wikilinks] plugin started');
