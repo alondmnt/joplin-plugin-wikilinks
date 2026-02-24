@@ -33,8 +33,8 @@ async function resolveNoteId(title: string): Promise<string | null> {
 		let page = 1;
 		let hasMore = true;
 		const titleLower = title.toLowerCase();
-		let caseInsensitiveId: string | null = null;
-		let firstWordId: string | null = null;
+		let caseInsensitiveMatch: { id: string; len: number } | null = null;
+		let firstWordMatch: { id: string; len: number } | null = null;
 
 		while (hasMore) {
 			const results = await joplin.data.get(['search'], {
@@ -48,9 +48,11 @@ async function resolveNoteId(title: string): Promise<string | null> {
 				// 2. Exact title match
 				if (n.title === title) return n.id;
 
-				// 3. Case-insensitive match (keep first)
-				if (!caseInsensitiveId && n.title.toLowerCase() === titleLower) {
-					caseInsensitiveId = n.id;
+				// 3. Case-insensitive match — prefer shortest title
+				if (n.title.toLowerCase() === titleLower) {
+					if (!caseInsensitiveMatch || n.title.length < caseInsensitiveMatch.len) {
+						caseInsensitiveMatch = { id: n.id, len: n.title.length };
+					}
 				}
 			}
 
@@ -58,9 +60,9 @@ async function resolveNoteId(title: string): Promise<string | null> {
 			page++;
 		}
 
-		if (caseInsensitiveId) return caseInsensitiveId;
+		if (caseInsensitiveMatch) return caseInsensitiveMatch.id;
 
-		// 4. First-word match — broader search
+		// 4. First-word match — broader search, prefer shortest title
 		page = 1;
 		hasMore = true;
 		while (hasMore) {
@@ -72,8 +74,10 @@ async function resolveNoteId(title: string): Promise<string | null> {
 			const items = results.items || [];
 
 			for (const n of items) {
-				if (!firstWordId && n.title.toLowerCase().split(' ')[0] === titleLower) {
-					firstWordId = n.id;
+				if (n.title.toLowerCase().split(' ')[0] === titleLower) {
+					if (!firstWordMatch || n.title.length < firstWordMatch.len) {
+						firstWordMatch = { id: n.id, len: n.title.length };
+					}
 				}
 			}
 
@@ -81,7 +85,7 @@ async function resolveNoteId(title: string): Promise<string | null> {
 			page++;
 		}
 
-		if (firstWordId) return firstWordId;
+		if (firstWordMatch) return firstWordMatch.id;
 	} catch (err) {
 		console.warn('[wikilinks] resolveNoteId error:', err);
 	}
