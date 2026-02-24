@@ -183,7 +183,7 @@ async function handleMessage(message: any): Promise<any> {
 	const noteId = await resolveNoteId(title);
 	if (!noteId) {
 		console.warn(`[wikilinks] note not found: "${title}"`);
-		return;
+		return { error: 'not_found', title };
 	}
 
 	if (slug) {

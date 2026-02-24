@@ -256,7 +256,12 @@ function followWikilinkAtPos(
 	for (const link of links) {
 		if (pos >= link.from && pos <= link.to) {
 			console.info(`[wikilinks] following: "${link.target}"`);
-			context.postMessage({ name: 'followWikilink', target: link.target });
+			context.postMessage({ name: 'followWikilink', target: link.target })
+				.then((result: any) => {
+					if (result?.error === 'not_found') {
+						alert(`Note not found: "${result.title}"`);
+					}
+				});
 			return true;
 		}
 	}

@@ -10,7 +10,13 @@ document.addEventListener('click', function (event) {
 			if (target) {
 				event.stopPropagation();
 				event.preventDefault();
-				webviewApi.postMessage('md-wikilinks', { name: 'followWikilink', target: target });
+				// Content script ID must match MD_CONTENT_SCRIPT_ID in index.ts
+				webviewApi.postMessage('md-wikilinks', { name: 'followWikilink', target: target })
+					.then(function (result) {
+						if (result && result.error === 'not_found') {
+							alert('Note not found: "' + result.title + '"');
+						}
+					});
 			}
 			return;
 		}
