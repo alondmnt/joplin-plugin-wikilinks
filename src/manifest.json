@@ -2,7 +2,7 @@
 	"manifest_version": 1,
 	"id": "joplin.plugin.alondmnt.wikilinks",
 	"app_min_version": "3.5",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"name": "Wikilinks",
 	"description": "Adds [[wikilinks]] support to the Markdown editor.",
 	"author": "Alon Diament",
