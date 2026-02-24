@@ -8,7 +8,7 @@
 	"author": "Alon Diament",
 	"homepage_url": "https://github.com/alondmnt/joplin-plugin-wikilinks#readme",
 	"repository_url": "https://github.com/alondmnt/joplin-plugin-wikilinks",
-	"keywords": [],
-	"categories": ["editor"],
+	"keywords": ["wikilinks", "links", "editor"],
+	"categories": ["editor", "appearance"],
 	"platforms": ["desktop", "mobile"]
 }
