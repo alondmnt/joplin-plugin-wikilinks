@@ -6,6 +6,7 @@ A [Joplin](https://joplinapp.org/) plugin that adds `[[wikilinks]]` support to t
 
 - **Syntax highlighting** — `[[targets]]` are styled as links with dotted underlines; brackets are rendered in a muted colour.
 - **Ctrl/Cmd+Click navigation** — follow a wikilink to open the target note.
+- **Pipe syntax** — `[[target|alias]]` displays the alias as link text and navigates to the target.
 - **Heading anchors** — `[[Note Title#Heading]]` scrolls to the heading after opening the note.
 - **Smart title resolution** — notes are matched by:
   1. Direct note ID (32-char hex).
