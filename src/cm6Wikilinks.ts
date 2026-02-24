@@ -125,18 +125,23 @@ const wikilinkPlugin = ViewPlugin.fromClass(
  */
 function wikilinkClickHandler(context: ContentScriptContext) {
 	return EditorView.domEventHandlers({
-		mousedown(event: MouseEvent, view: EditorView) {
+		click(event: MouseEvent, view: EditorView) {
 			// Require Cmd (Mac) or Ctrl (Win/Linux)
 			if (!event.metaKey && !event.ctrlKey) return false;
 
 			const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-			if (pos === null) return false;
+			if (pos === null) {
+				console.info('[wikilinks] click: posAtCoords returned null');
+				return false;
+			}
 
 			// Check if the clicked position falls within any wikilink
 			const links = findWikilinks(view);
+			console.info(`[wikilinks] click at pos=${pos}, found ${links.length} wikilinks`);
 			for (const link of links) {
-				if (pos >= link.from && pos < link.to) {
+				if (pos >= link.from && pos <= link.to) {
 					event.preventDefault();
+					console.info(`[wikilinks] following: "${link.target}"`);
 					context.postMessage({ name: 'followWikilink', target: link.target });
 					return true;
 				}
@@ -156,7 +161,6 @@ const wikilinkTheme = EditorView.baseTheme({
 		color: 'var(--joplin-color-link, #0066cc)',
 		textDecoration: 'underline',
 		textDecorationStyle: 'dotted',
-		cursor: 'pointer',
 	},
 	'.cm-wikilink-bracket': {
 		color: 'var(--joplin-color-faded, #999)',
