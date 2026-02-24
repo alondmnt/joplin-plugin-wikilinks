@@ -24,6 +24,18 @@ function clearApiResponse(response: any): void {
 // ────────────────────────────────────────────────
 
 /**
+ * Strip characters that are special in Joplin's search syntax.
+ *
+ * Joplin's filterParser treats `"` as a quote-state toggle and `*` as a
+ * wildcard. Other punctuation is stripped by the FTS4 tokeniser and is
+ * harmless. The search is a candidate finder — exact matching happens
+ * in the caller.
+ */
+function sanitiseSearchTitle(s: string): string {
+	return s.replace(/["*]/g, '');
+}
+
+/**
  * Resolve a wikilink target string to a Joplin note ID.
  *
  * Strategy (mirrors tag-navigator's getNoteId):
@@ -48,7 +60,7 @@ async function resolveNoteId(title: string): Promise<string | null> {
 		let page = 1;
 		let hasMore = true;
 		const titleLower = title.toLowerCase();
-		const safeTitle = title.replace(/"/g, '\\"');
+		const safeTitle = sanitiseSearchTitle(title);
 		let caseInsensitiveMatch: { id: string; len: number } | null = null;
 		let firstWordMatch: { id: string; len: number } | null = null;
 
