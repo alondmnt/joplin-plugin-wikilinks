@@ -190,6 +190,24 @@ function findJoplinLinkAtCursor(view: EditorView): JoplinLink | null {
 }
 
 /**
+ * Build a `[[wikilink]]` string from a resolved note title and link metadata.
+ *
+ * Uses pipe syntax `[[target|alias]]` when the link's display text differs
+ * from the resolved title (and isn't just the title's first word / zettel ID).
+ * Heading slugs are appended to the target.
+ */
+function buildWikilinkText(title: string, link: JoplinLink): string {
+	const needsAlias = link.text
+		&& link.text !== title
+		&& link.text.toLowerCase() !== title.toLowerCase().split(' ')[0];
+
+	const baseTarget = needsAlias ? title : (link.text || title);
+	const target = link.slug ? `${baseTarget}#${link.slug}` : baseTarget;
+
+	return needsAlias ? `[[${target}|${link.text}]]` : `[[${target}]]`;
+}
+
+/**
  * Resolve the actual note title and convert a Joplin link to a wikilink.
  *
  * If display text differs from the resolved title, uses pipe syntax
@@ -222,19 +240,7 @@ async function convertToWikilink(
 	// Bail if the document changed during the async round-trip
 	if (view.state.sliceDoc(link.from, link.to) !== original) return;
 
-	// Skip alias when display text matches the title or its first word (zettel ID)
-	const needsAlias = link.text
-		&& link.text !== title
-		&& link.text.toLowerCase() !== title.toLowerCase().split(' ')[0];
-
-	// Build the wikilink target (title + optional heading slug)
-	const target = needsAlias
-		? (link.slug ? `${title}#${link.slug}` : title)
-		: (link.slug ? `${link.text || title}#${link.slug}` : (link.text || title));
-	const wikilink = needsAlias
-		? `[[${target}|${link.text}]]`
-		: `[[${target}]]`;
-
+	const wikilink = buildWikilinkText(title, link);
 	view.dispatch({
 		changes: { from: link.from, to: link.to, insert: wikilink },
 	});
