@@ -33,3 +33,5 @@ The packaged plugin will be written to `publish/`.
 ## Licence
 
 [MIT](LICENSE)
+
+> This project is developed with the help of AI assistants.
