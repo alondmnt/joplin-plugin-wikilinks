@@ -25,8 +25,10 @@ interface WikilinkRange {
 	from: number;
 	/** Absolute offset just past the closing `]]`. */
 	to: number;
-	/** The raw target string between the brackets. */
+	/** The navigation target (before `|` if piped). */
 	target: string;
+	/** Absolute offset where alias text starts (after `|`), if present. */
+	aliasStart?: number;
 }
 
 // ────────────────────────────────────────────────
@@ -70,7 +72,12 @@ function findWikilinks(view: EditorView): WikilinkRange[] {
 			// Skip wikilinks inside code regions
 			if (isInsideCode(view, absFrom)) continue;
 
-			results.push({ from: absFrom, to: absTo, target: m[1] });
+			const raw = m[1];
+			const pipeIdx = raw.indexOf('|');
+			const target = pipeIdx >= 0 ? raw.slice(0, pipeIdx) : raw;
+			const aliasStart = pipeIdx >= 0 ? absFrom + 2 + pipeIdx + 1 : undefined;
+
+			results.push({ from: absFrom, to: absTo, target, aliasStart });
 		}
 	}
 
@@ -101,12 +108,14 @@ const wikilinkPlugin = ViewPlugin.fromClass(
 
 			// RangeSetBuilder requires ranges added in document order
 			for (const r of ranges) {
-				// `[[` bracket
-				b.add(r.from, r.from + 2, bracketDeco);
-				// link text
-				b.add(r.from + 2, r.to - 2, linkDeco);
-				// `]]` bracket
-				b.add(r.to - 2, r.to, bracketDeco);
+				b.add(r.from, r.from + 2, bracketDeco);       // `[[`
+				if (r.aliasStart !== undefined) {
+					b.add(r.from + 2, r.aliasStart, bracketDeco);  // `target|`
+					b.add(r.aliasStart, r.to - 2, linkDeco);      // alias
+				} else {
+					b.add(r.from + 2, r.to - 2, linkDeco);        // link text
+				}
+				b.add(r.to - 2, r.to, bracketDeco);           // `]]`
 			}
 
 			return b.finish();
