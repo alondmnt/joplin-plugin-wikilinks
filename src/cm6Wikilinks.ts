@@ -108,19 +108,22 @@ function findWikilinks(view: EditorView): WikilinkRange[] {
 const wikilinkPlugin = ViewPlugin.fromClass(
 	class {
 		decorations;
+		/** Cached wikilink ranges, reused by the click handler. */
+		ranges: WikilinkRange[] = [];
 
 		constructor(view: EditorView) {
-			this.decorations = this.build(view);
+			this.ranges = findWikilinks(view);
+			this.decorations = this.buildDecorations(this.ranges);
 		}
 
 		update(u: ViewUpdate) {
 			if (u.docChanged || u.viewportChanged) {
-				this.decorations = this.build(u.view);
+				this.ranges = findWikilinks(u.view);
+				this.decorations = this.buildDecorations(this.ranges);
 			}
 		}
 
-		build(view: EditorView) {
-			const ranges = findWikilinks(view);
+		buildDecorations(ranges: WikilinkRange[]) {
 			const b = new RangeSetBuilder<Decoration>();
 
 			// RangeSetBuilder requires ranges added in document order
@@ -258,7 +261,7 @@ function followWikilinkAtPos(
 	view: EditorView,
 	context: ContentScriptContext,
 ): boolean {
-	const links = findWikilinks(view);
+	const links = view.plugin(wikilinkPlugin)?.ranges ?? findWikilinks(view);
 	for (const link of links) {
 		if (pos >= link.from && pos <= link.to) {
 			console.info(`[wikilinks] following: "${link.target}"`);
