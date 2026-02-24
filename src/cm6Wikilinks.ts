@@ -241,12 +241,32 @@ async function convertToWikilink(
 }
 
 // ────────────────────────────────────────────────
-// Click handler — Ctrl/Cmd+Click to follow
+// Follow handler — Ctrl/Cmd+Click & long-press
 // ────────────────────────────────────────────────
 
 /**
- * Build a click handler that sends `followWikilink` messages via the
- * content script bridge when the user Ctrl/Cmd+clicks a wikilink.
+ * If `pos` falls inside a wikilink, follow it and return true.
+ */
+function followWikilinkAtPos(
+	pos: number,
+	view: EditorView,
+	context: ContentScriptContext,
+): boolean {
+	const links = findWikilinks(view);
+	for (const link of links) {
+		if (pos >= link.from && pos <= link.to) {
+			console.info(`[wikilinks] following: "${link.target}"`);
+			context.postMessage({ name: 'followWikilink', target: link.target });
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Build event handlers for following wikilinks:
+ *  - Desktop: Ctrl/Cmd+Click
+ *  - Mobile: long-press (contextmenu triggered by touch)
  */
 function wikilinkClickHandler(context: ContentScriptContext) {
 	return EditorView.domEventHandlers({
@@ -255,23 +275,26 @@ function wikilinkClickHandler(context: ContentScriptContext) {
 			if (!event.metaKey && !event.ctrlKey) return false;
 
 			const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-			if (pos === null) {
-				console.info('[wikilinks] click: posAtCoords returned null');
-				return false;
-			}
+			if (pos === null) return false;
 
-			// Check if the clicked position falls within any wikilink
-			const links = findWikilinks(view);
-			console.info(`[wikilinks] click at pos=${pos}, found ${links.length} wikilinks`);
-			for (const link of links) {
-				if (pos >= link.from && pos <= link.to) {
-					event.preventDefault();
-					console.info(`[wikilinks] following: "${link.target}"`);
-					context.postMessage({ name: 'followWikilink', target: link.target });
-					return true;
-				}
+			if (followWikilinkAtPos(pos, view, context)) {
+				event.preventDefault();
+				return true;
 			}
+			return false;
+		},
 
+		contextmenu(event: MouseEvent, view: EditorView) {
+			// Only handle touch-originated long-press; preserve desktop right-click
+			if (event.button === 2) return false;
+
+			const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+			if (pos === null) return false;
+
+			if (followWikilinkAtPos(pos, view, context)) {
+				event.preventDefault();
+				return true;
+			}
 			return false;
 		},
 	});

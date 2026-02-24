@@ -10,5 +10,5 @@
 	"repository_url": "https://github.com/alondmnt/joplin-plugin-wikilinks",
 	"keywords": [],
 	"categories": ["editor"],
-	"platforms": ["desktop"]
+	"platforms": ["desktop", "mobile"]
 }
