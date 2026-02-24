@@ -1,5 +1,5 @@
 import joplin from 'api';
-import { ContentScriptType } from 'api/types';
+import { ContentScriptType, MenuItemLocation } from 'api/types';
 const uslug = require('@joplin/fork-uslug');
 
 const CONTENT_SCRIPT_ID = 'cm6-wikilinks';
@@ -125,7 +125,17 @@ function headingToSlug(heading: string): string {
 	return uslug(heading);
 }
 
-async function handleMessage(message: any): Promise<void> {
+async function handleMessage(message: any): Promise<any> {
+	// Resolve a note title by ID (used by the convert-to-wikilink command)
+	if (message?.name === 'resolveTitle' && message.noteId) {
+		try {
+			const note = await joplin.data.get(['notes', message.noteId], { fields: ['title'] });
+			return { title: note?.title || null };
+		} catch {
+			return { title: null };
+		}
+	}
+
 	if (message?.name !== 'followWikilink' || !message.target) return;
 
 	const raw: string = message.target;
@@ -169,6 +179,24 @@ joplin.plugins.register({
 		);
 
 		await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, handleMessage);
+
+		// Command: convert a Joplin markdown link to a wikilink
+		await joplin.commands.register({
+			name: 'wikilinks.convertLink',
+			label: 'Convert Joplin link to wikilink',
+			execute: async () => {
+				await joplin.commands.execute('editor.execCommand', {
+					name: 'convertToWikilink',
+				});
+			},
+		});
+
+		await joplin.views.menuItems.create(
+			'wikilinks-convert-link-menu',
+			'wikilinks.convertLink',
+			MenuItemLocation.Note,
+			{ accelerator: 'Ctrl+Shift+L' },
+		);
 
 		console.info('[wikilinks] plugin started');
 	},

@@ -6,6 +6,23 @@ import { Decoration, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view
 /** Regex matching `[[target]]` — requires at least one char inside. */
 const WIKILINK_RE = /\[\[([^\[\]]+)\]\]/g;
 
+/** Regex matching Joplin internal links: `[text](:/noteId)` or `[text](:/noteId#slug)`. */
+const JOPLIN_LINK_RE = /\[([^\]]*)\]\(:\/([a-f0-9]{32})(?:#([^)]*))?\)/g;
+
+/** A Joplin-style markdown link parsed from the document. */
+interface JoplinLink {
+	/** Absolute offset of the opening `[`. */
+	from: number;
+	/** Absolute offset just past the closing `)`. */
+	to: number;
+	/** Display text between `[` and `]`. */
+	text: string;
+	/** 32-char hex note ID. */
+	noteId: string;
+	/** Optional heading slug after `#`. */
+	slug: string | null;
+}
+
 /** Syntax tree node types that represent code regions. */
 const CODE_NODES = new Set([
 	'FencedCode', 'CodeBlock', 'InlineCode', 'CodeText',
@@ -125,6 +142,98 @@ const wikilinkPlugin = ViewPlugin.fromClass(
 );
 
 // ────────────────────────────────────────────────
+// Joplin link detection and conversion
+// ────────────────────────────────────────────────
+
+/**
+ * Find the Joplin link at cursor, or the nearest one on the current line.
+ *
+ * 1. If cursor is directly inside a link → return it.
+ * 2. Otherwise → return the nearest link on the line.
+ */
+function findJoplinLinkAtCursor(view: EditorView): JoplinLink | null {
+	const { head } = view.state.selection.main;
+	const line = view.state.doc.lineAt(head);
+
+	JOPLIN_LINK_RE.lastIndex = 0;
+	const links: JoplinLink[] = [];
+	let m: RegExpExecArray | null;
+
+	while ((m = JOPLIN_LINK_RE.exec(line.text)) !== null) {
+		links.push({
+			from: line.from + m.index,
+			to: line.from + m.index + m[0].length,
+			text: m[1],
+			noteId: m[2],
+			slug: m[3] || null,
+		});
+	}
+
+	if (links.length === 0) return null;
+
+	// Prefer a link the cursor is inside
+	for (const link of links) {
+		if (head >= link.from && head <= link.to) return link;
+	}
+
+	// Fall back to nearest link on the line
+	let nearest = links[0];
+	let minDist = Math.min(Math.abs(head - nearest.from), Math.abs(head - nearest.to));
+	for (let i = 1; i < links.length; i++) {
+		const dist = Math.min(Math.abs(head - links[i].from), Math.abs(head - links[i].to));
+		if (dist < minDist) {
+			minDist = dist;
+			nearest = links[i];
+		}
+	}
+	return nearest;
+}
+
+/**
+ * Resolve the actual note title and convert a Joplin link to a wikilink.
+ *
+ * If display text differs from the resolved title, uses pipe syntax
+ * `[[target|displayText]]`. Heading slugs are preserved in the target.
+ */
+async function convertToWikilink(
+	view: EditorView,
+	link: JoplinLink,
+	context: ContentScriptContext,
+): Promise<void> {
+	// Snapshot original text so we can detect edits during the async gap
+	const original = view.state.sliceDoc(link.from, link.to);
+
+	// Resolve actual note title from backend
+	let title = link.text;
+	try {
+		const response = await context.postMessage({
+			name: 'resolveTitle',
+			noteId: link.noteId,
+		});
+		if (response?.title) {
+			title = response.title;
+		}
+	} catch {
+		// Fall back to display text
+	}
+
+	if (!title) return; // nothing useful to insert
+
+	// Bail if the document changed during the async round-trip
+	if (view.state.sliceDoc(link.from, link.to) !== original) return;
+
+	// Build the wikilink target (title + optional heading slug)
+	const target = link.slug ? `${title}#${link.slug}` : title;
+	const wikilink = (link.text && link.text !== title)
+		? `[[${target}|${link.text}]]`
+		: `[[${target}]]`;
+
+	view.dispatch({
+		changes: { from: link.from, to: link.to, insert: wikilink },
+	});
+}
+
+// ────────────────────────────────────────────────
 // Click handler — Ctrl/Cmd+Click to follow
 // ────────────────────────────────────────────────
 
@@ -190,5 +299,13 @@ export default (context: ContentScriptContext): MarkdownEditorContentScriptModul
 			wikilinkClickHandler(context),
 			wikilinkTheme,
 		]);
+
+		// Command: convert the nearest Joplin link to a wikilink
+		editorControl.registerCommand('convertToWikilink', async () => {
+			const view = editorControl.editor;
+			const link = findJoplinLinkAtCursor(view);
+			if (!link) return;
+			await convertToWikilink(view, link, context);
+		});
 	},
 });
