@@ -85,7 +85,7 @@ async function resolveNoteId(title: string): Promise<string | null> {
 		hasMore = true;
 		while (hasMore) {
 			const results = await joplin.data.get(['search'], {
-				query: title,
+				query: `title:${title}`,
 				fields: ['id', 'title'],
 				page,
 			});
