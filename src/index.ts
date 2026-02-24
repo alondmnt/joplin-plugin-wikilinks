@@ -3,6 +3,7 @@ import { ContentScriptType, MenuItemLocation, ToolbarButtonLocation } from 'api/
 const uslug = require('@joplin/fork-uslug');
 
 const CONTENT_SCRIPT_ID = 'cm6-wikilinks';
+const MD_CONTENT_SCRIPT_ID = 'md-wikilinks';
 
 // ────────────────────────────────────────────────
 // Memory management helpers
@@ -180,6 +181,14 @@ joplin.plugins.register({
 		);
 
 		await joplin.contentScripts.onMessage(CONTENT_SCRIPT_ID, handleMessage);
+
+		// Preview pane: render [[wikilinks]] as clickable links
+		await joplin.contentScripts.register(
+			ContentScriptType.MarkdownItPlugin,
+			MD_CONTENT_SCRIPT_ID,
+			'./mdWikilinks.js',
+		);
+		await joplin.contentScripts.onMessage(MD_CONTENT_SCRIPT_ID, handleMessage);
 
 		// Command: convert a Joplin markdown link to a wikilink
 		await joplin.commands.register({

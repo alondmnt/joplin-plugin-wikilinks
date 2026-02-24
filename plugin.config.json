@@ -1,3 +1,3 @@
 {
-	"extraScripts": ["cm6Wikilinks.ts"]
+	"extraScripts": ["cm6Wikilinks.ts", "mdWikilinks.ts"]
 }
