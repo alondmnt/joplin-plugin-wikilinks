@@ -77,10 +77,19 @@ async function resolveNoteId(title: string): Promise<string | null> {
 				// 2. Exact title match
 				if (n.title === title) { exactId = n.id; break; }
 
+				const nLower = n.title.toLowerCase();
+
 				// 3. Case-insensitive match — prefer shortest title
-				if (n.title.toLowerCase() === titleLower) {
+				if (nLower === titleLower) {
 					if (!caseInsensitiveMatch || n.title.length < caseInsensitiveMatch.len) {
 						caseInsensitiveMatch = { id: n.id, len: n.title.length };
+					}
+				}
+
+				// 4. First-word (zettel ID) match — prefer shortest title
+				if (nLower.split(' ')[0] === titleLower) {
+					if (!firstWordMatch || n.title.length < firstWordMatch.len) {
+						firstWordMatch = { id: n.id, len: n.title.length };
 					}
 				}
 			}
@@ -94,28 +103,33 @@ async function resolveNoteId(title: string): Promise<string | null> {
 
 		if (caseInsensitiveMatch) return caseInsensitiveMatch.id;
 
-		// 4. First-word match — broader search, prefer shortest title
-		page = 1;
-		hasMore = true;
-		while (hasMore) {
-			const results = await joplin.data.get(['search'], {
-				query: `title:${safeTitle}`,
-				fields: ['id', 'title'],
-				page,
-			});
-			const items = results.items || [];
+		// For single-word targets, the quoted search already returns all
+		// candidates needed for first-word matching. For multi-word targets
+		// (where first-word can't match anyway), this fallback uses an
+		// unquoted query that searches each word as an independent token.
+		if (!firstWordMatch) {
+			page = 1;
+			hasMore = true;
+			while (hasMore) {
+				const results = await joplin.data.get(['search'], {
+					query: `title:${safeTitle}`,
+					fields: ['id', 'title'],
+					page,
+				});
+				const items = results.items || [];
 
-			for (const n of items) {
-				if (n.title.toLowerCase().split(' ')[0] === titleLower) {
-					if (!firstWordMatch || n.title.length < firstWordMatch.len) {
-						firstWordMatch = { id: n.id, len: n.title.length };
+				for (const n of items) {
+					if (n.title.toLowerCase().split(' ')[0] === titleLower) {
+						if (!firstWordMatch || n.title.length < firstWordMatch.len) {
+							firstWordMatch = { id: n.id, len: n.title.length };
+						}
 					}
 				}
-			}
 
-			hasMore = results.has_more;
-			page++;
-			clearApiResponse(results);
+				hasMore = results.has_more;
+				page++;
+				clearApiResponse(results);
+			}
 		}
 
 		if (firstWordMatch) return firstWordMatch.id;
