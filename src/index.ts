@@ -47,12 +47,13 @@ async function resolveNoteId(title: string): Promise<string | null> {
 		let page = 1;
 		let hasMore = true;
 		const titleLower = title.toLowerCase();
+		const safeTitle = title.replace(/"/g, '\\"');
 		let caseInsensitiveMatch: { id: string; len: number } | null = null;
 		let firstWordMatch: { id: string; len: number } | null = null;
 
 		while (hasMore) {
 			const results = await joplin.data.get(['search'], {
-				query: `title:"${title}"`,
+				query: `title:"${safeTitle}"`,
 				fields: ['id', 'title'],
 				page,
 			});
@@ -85,7 +86,7 @@ async function resolveNoteId(title: string): Promise<string | null> {
 		hasMore = true;
 		while (hasMore) {
 			const results = await joplin.data.get(['search'], {
-				query: `title:${title}`,
+				query: `title:${safeTitle}`,
 				fields: ['id', 'title'],
 				page,
 			});
