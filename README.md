@@ -1,5 +1,7 @@
 # Wikilinks
 
+![downloads](https://img.shields.io/badge/dynamic/json?color=brightgreen&label=downloads&query=%24.totalDownloads&url=https%3A%2F%2Fjoplin-plugin-downloads.vercel.app%2Fapi%3Fplugin%3Djoplin.plugin.alondmnt.wikilinks)
+
 A [Joplin](https://joplinapp.org/) plugin that adds `[[wikilinks]]` support to the Markdown editor and preview pane.
 
 ## Features
